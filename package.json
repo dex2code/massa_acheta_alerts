@@ -1,0 +1,24 @@
+{
+  "name": "massa_acheta_alerts",
+  "version": "1.0.0",
+  "description": "Alerting service for MASSA Acheta Radio",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dex2code/massa_acheta_alerts.git"
+  },
+  "author": "dex2code",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dex2code/massa_acheta_alerts/issues"
+  },
+  "homepage": "https://github.com/dex2code/massa_acheta_alerts#readme",
+  "devDependencies": {
+    "@types/node": "^20.12.13",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
