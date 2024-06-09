@@ -17,7 +17,11 @@ const tgURL = `https://api.telegram.org/bot${tgToken}/sendMessage?chat_id=${tgCh
 const tgCourierDelayMs = 2_100;
 
 const exchangeURL = "https://api.bitget.com/api/v2/spot/market/tickers?symbol=MASUSDT";
-const exchangeDelayMs = 5_000;
+const exchangeDelayMs = 300_000;
+
+const githubAPI = "https://api.github.com/repos/massalabs/massa/releases/latest";
+const githubRelease = "https://github.com/massalabs/massa/releases/tag/"
+const githubDelayMs = 300_000;
 
 const publicApiURL = "https://mainnet.massa.net/api/v2";
 
@@ -44,9 +48,11 @@ const w3Client = new PublicApiClient({
 /** Global vars section */
 var massaPrice = {
   currentValue: 0.0,
-  fixedValue: 0.00,
+  fixedValue: 0.0,
   tresholdPercent: 2,
 };
+
+var massaRelease = "";
 
 var massaBlocks: string[] = new Array();
 var massaOps: string[] = new Array();
@@ -65,25 +71,23 @@ async function sendTgMessage (tgMessage: string): Promise<boolean> {
   debugMode? console.debug(`Sending message '${tgMessage}' to chat '${tgChat}'`) :{};
 
   return await fetch(tgURL + tgMessage)
-    .then(response => {
-      if (response.ok) {
-        debugMode? console.debug(`Sent message '${tgMessage}' to chat '${tgChat}' with result '${response.status}' (${response.statusText})`) :{};
-      } else {
-        throw new Error(`Cannot send message to tgChat ${tgChat}: ${response.status} (${response.statusText})`);
-      }
-      return true;
-    })
-    .catch(err => {
-      console.error(err);
-      return false;
-    });
+  .then(response => {
+    if (response.ok) {
+      debugMode? console.debug(`Sent message '${tgMessage}' to chat '${tgChat}' with result '${response.status}' (${response.statusText})`) :{};
+    } else {
+      throw new Error(`Cannot send message to tgChat ${tgChat}: ${response.status} (${response.statusText})`);
+    }
+    return true;
+  })
+  .catch(err => {
+    console.error(err);
+    return false;
+  });
 }
 /** End of Tools */
 
 
-/**
- * TG Courier
- */
+/** TG Courier */
 setInterval(async function () {
   debugMode? console.debug(`TG Courier interval run`) :{};
 
@@ -104,43 +108,72 @@ setInterval(async function () {
 }, tgCourierDelayMs);
 
 
-/**
- * Update MAS price
- * 
- * Get new value every ${exchangeDelayMS} milliseconds from ${exchangeURL}
- * If the new price differs from the old one by more than a ${massaPriceTresholdPercent}, the notification procedure is called.
- */
+/** Update MAS price */
 setInterval(async function () {
   debugMode? console.debug(`MAS Price updater interval run`) :{};
 
   await fetch(exchangeURL)
-    .then(async function (response) {
-      if (!response.ok) {
-        throw new Error(`Cannot fetch from '${exchangeURL}': ${response.status} (${response.statusText})`);
-      } else {
-        debugMode? console.debug(`MAS Price update got ${response.status}`) :{};
-      }
-      return await response.json();
-    })
-    .then(async function (data) {
-      if (data['msg'] != "success") {
-        throw new Error(`Wrong msg value: '${data['msg']}'`);
-      } else {
-        debugMode? console.log(`Got ${JSON.stringify(data)} from exchange, new MAS Price value: ${data['data'].at(-1)['lastPr']}, fixedValue: ${massaPrice.fixedValue}`) :{};
-        massaPrice.currentValue = parseFloat(data['data'].at(-1)['lastPr']);
-        if (massaPrice.fixedValue == 0) {
-          debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
-          massaPrice.fixedValue = massaPrice.currentValue;
-        }
-      }
-      let massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
-      if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
-        const massaPriceDiffPerscent = (massaPriceDiff / massaPrice.fixedValue * 100).toFixed(2);
-        (massaPriceDiff >= 0)?
-          tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( +${massaPriceDiffPerscent} % )`) :
-          tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ${massaPriceDiffPerscent} % )`);
+  .then(async function (response) {
+    if (!response.ok) {
+      throw new Error(`Cannot fetch from '${exchangeURL}': ${response.status} (${response.statusText})`);
+    } else {
+      debugMode? console.debug(`MAS Price update got ${response.status}`) :{};
+    }
+    return await response.json();
+  })
+  .then(async function (data) {
+    if (data['msg'] != "success" || !data['data'].at(-1)['lastPr']) {
+      throw new Error(`Wrong data value: '${data['msg']}' -- '${data['data']}'`);
+    } else {
+      debugMode? console.debug(`Got ${JSON.stringify(data)} from exchange, new MAS Price value: ${data['data'].at(-1)['lastPr']}, fixedValue: ${massaPrice.fixedValue}`) :{};
+      massaPrice.currentValue = parseFloat(data['data'].at(-1)['lastPr']);
+      if (massaPrice.fixedValue == 0) {
+        debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
         massaPrice.fixedValue = massaPrice.currentValue;
       }
-    })
-    .catch(err => { console.log(err) });
+    }
+    let massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
+    if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
+      const massaPriceDiffPerscent = (massaPriceDiff / massaPrice.fixedValue * 100).toFixed(2);
+      (massaPriceDiff >= 0)?
+        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( +${massaPriceDiffPerscent} % )`) :
+        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ${massaPriceDiffPerscent} % )`);
+      massaPrice.fixedValue = massaPrice.currentValue;
+    }
+  })
+  .catch(err => { console.error(err) });
 }, exchangeDelayMs);
+
+
+/** Check MASSA Release */
+setInterval(async function () {
+  debugMode? console.debug(`GitHUB MASSA Release interval run`) :{};
+
+  await fetch(githubAPI)
+  .then(async function (response) {
+    if (!response.ok) {
+      throw new Error(`Cannot fetch from '${githubAPI}': ${response.status} (${response.statusText})`);
+    } else {
+      debugMode? console.debug(`GitHUB MASSA Release checker got ${response.status}`) :{};
+    }
+    return await response.json();
+  })
+  .then(async function (data) {
+    if (!data['name']) {
+      throw new Error(`Wrong MASSA Release version received`);
+    }
+    if (massaRelease === "") {
+      debugMode? console.debug(`Seems to be a first run - set massaRelease`) :{};
+      massaRelease = data['name'];
+    }
+    if (data['name'] != massaRelease && !data['draft'] && !data['prerelease']) {
+      debugMode? console.log(`New MASSA Release found: '${data['name']}'`) :{};
+      massaRelease = data['name'];
+      tgMessages.push(` 💾 A new MASSA Release available: ${massaRelease}. Download: ${githubRelease}${massaRelease}`);
+    } else {
+      debugMode? console.debug(`No new MASSA releases found (${data['name']})`) :{};
+    }
+  })
+  .catch(err => { console.error(err); });
+
+}, githubDelayMs);
