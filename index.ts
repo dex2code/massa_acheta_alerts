@@ -44,7 +44,7 @@ const w3Client = new PublicApiClient({
 /** Global vars section */
 var massaPrice = {
   currentValue: 0.0,
-  fixedValue: 0.01,
+  fixedValue: 0.00,
   tresholdPercent: 2,
 };
 
