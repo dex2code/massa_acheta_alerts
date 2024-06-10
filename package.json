@@ -4,7 +4,7 @@
   "description": "Alerting service for MASSA Acheta Radio",
   "main": "index.js",
   "scripts": {
-    "start": "npx ts-node index.ts"
+    "start": "npx ts-node ./src/index.ts"
   },
   "repository": {
     "type": "git",
