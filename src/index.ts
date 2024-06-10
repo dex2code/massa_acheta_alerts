@@ -3,24 +3,36 @@ console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
 import {
   debugMode,
   tgCourierDelayMs,
-  exchangeURL, exchangeDelayMs,
-  githubAPI, githubRelease, githubDelayMs
+  exchangeURL, exchangeDelayMs, exchangeTresholdPercent,
+  githubAPI, githubRelease, githubDelayMs,
+  w3Client,
+  graphIntervalMs, graphTimeOrigin
 } from "./consts";
+
+import {
+  IMassaPrice
+} from "./types";
+
+import {
+  IGetGraphInterval
+} from "@massalabs/massa-web3";
 
 import { sendTgMessage } from "./tools";
 
 /** Global vars section */
-var massaPrice = {
-  currentValue: 0.0,
-  fixedValue: 0.0,
-  tresholdPercent: 2,
+var tgMessages: string[] = new Array();
+
+var massaRelease: string;
+
+var massaPrice: IMassaPrice = {
+  tresholdPercent: exchangeTresholdPercent,
 };
 
-var massaRelease = "";
+var graphStart: number;
+var graphEnd: number;
 
 var massaBlocks: string[] = new Array();
 var massaOps: string[] = new Array();
-var tgMessages: string[] = new Array();
 /** End of Global vars section */
 
 
@@ -64,13 +76,14 @@ setInterval(async function () {
     } else {
       debugMode? console.debug(`Got ${JSON.stringify(data)} from exchange, new MAS Price value: ${data['data'].at(-1)['lastPr']}, fixedValue: ${massaPrice.fixedValue}`) :{};
       massaPrice.currentValue = parseFloat(data['data'].at(-1)['lastPr']);
-      if (massaPrice.fixedValue == 0) {
+      if (massaPrice.fixedValue === undefined) {
         debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
         massaPrice.fixedValue = massaPrice.currentValue;
       }
     }
     let massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
     if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
+      debugMode? console.debug(`Found MAS Price threshold exceeded detected (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`) :{};
       const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
       (massaPriceDiff >= 0)?
         tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent} % )`) :
@@ -99,7 +112,7 @@ setInterval(async function () {
     if (!data['tag_name']) {
       throw new Error(`Wrong MASSA Release version received`);
     }
-    if (massaRelease === "") {
+    if (massaRelease === undefined) {
       debugMode? console.debug(`Seems to be a first run - set massaRelease`) :{};
       massaRelease = data['tag_name'];
     }
@@ -112,7 +125,32 @@ setInterval(async function () {
     }
   })
   .catch(err => { console.error(err); });
-
 }, githubDelayMs);
 
 
+/** Get blocks with graphInterval */
+setInterval(async function () {
+  debugMode? console.debug(`graphInterval run`) :{};
+
+  (graphStart === undefined && graphEnd === undefined) ?
+    graphStart = graphTimeOrigin :
+    graphStart = graphEnd + 1;
+    
+  graphEnd = graphStart + graphIntervalMs;
+
+  await w3Client.getGraphInterval({
+    start: graphStart,
+    end: graphEnd
+  } as IGetGraphInterval)
+  .then(async function (blocks) {
+    blocks.forEach(async function (block) {
+      if (block.id) {
+        debugMode? console.debug(`Found new block: ${block.id}`) :{};
+        massaBlocks.push(block.id);  
+      } else {
+        throw new Error(`Undefined block ID`);
+      }
+    });
+  })
+  .catch(err => { console.error(err); });
+}, graphIntervalMs);

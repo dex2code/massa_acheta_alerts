@@ -17,7 +17,7 @@ export async function sendTgMessage (tgMessage: string): Promise<boolean> {
   return await fetch(encodeURI(tgURL + tgMessage))
   .then(response => {
     if (response.ok) {
-      debugMode? console.debug(`Sent message '${tgMessage}' to chat '${tgChat}' with result '${response.status}' (${response.statusText})`) :{};
+      debugMode? console.debug(`Successfully sent message '${tgMessage}' to chat '${tgChat}' with result '${response.status}' (${response.statusText})`) :{};
     } else {
       throw new Error(`Cannot send message to tgChat ${tgChat}: ${response.status} (${response.statusText})`);
     }

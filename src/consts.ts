@@ -13,21 +13,19 @@ export const tgCourierDelayMs = 2_100;
 
 export const exchangeURL = "https://api.bitget.com/api/v2/spot/market/tickers?symbol=MASUSDT";
 export const exchangeDelayMs = 300_000;
+export const exchangeTresholdPercent = 2;
 
 export const githubAPI = "https://api.github.com/repos/massalabs/massa/releases/latest";
 export const githubRelease = "https://github.com/massalabs/massa/releases/tag/"
 export const githubDelayMs = 300_000;
 
-const publicApiURL = "https://mainnet.massa.net/api/v2";
+export const publicApiURL = "https://mainnet.massa.net/api/v2";
 
-const graphIntervalMs = 500;
-const graphShiftMs = 120_000;
-const graphLookupMs = 500;
-const operationLookupMs = 100;
+export const graphShiftMs = 120_000;
+export const graphTimeOrigin = Date.now() - graphShiftMs;
+export const graphIntervalMs = 500;
 
-const timeOrigin = Date.now() - graphShiftMs;
-var graphStart: number;
-var graphEnd: number;
+export const operationLookupMs = 100;
 
 
 import {
@@ -35,7 +33,7 @@ import {
   PublicApiClient, ProviderType,
 } from "@massalabs/massa-web3";
 
-const w3Client = new PublicApiClient({
+export const w3Client = new PublicApiClient({
   providers: [{
     url: publicApiURL,
     type: ProviderType.PUBLIC
