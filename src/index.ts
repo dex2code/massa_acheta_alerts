@@ -1,3 +1,5 @@
+console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
+
 import {
   debugMode,
   tgCourierDelayMs,
