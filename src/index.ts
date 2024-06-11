@@ -3,10 +3,11 @@ console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
 import {
   debugMode,
   tgCourierDelayMs,
-  exchangeURL, exchangeDelayMs, exchangeTresholdPercent,
-  githubAPI, githubRelease, githubDelayMs,
+  exchangeDelayMs, exchangeTresholdPercent,
+  githubDelayMs, githubReleasePath,
   w3Client,
-  graphIntervalMs, graphTimeOrigin
+  graphIntervalMs, graphTimeOrigin,
+  operationLookupDelayMs
 } from "./consts";
 
 import {
@@ -17,7 +18,11 @@ import {
   IGetGraphInterval
 } from "@massalabs/massa-web3";
 
-import { sendTgMessage } from "./tools";
+import {
+  sendTgMessage, getMassaPrice,
+  getMassaRelease
+} from "./tools";
+
 
 /** Global vars section */
 var tgMessages: string[] = new Array();
@@ -61,37 +66,27 @@ setInterval(async function () {
 setInterval(async function () {
   debugMode? console.debug(`MAS Price updater interval run`) :{};
 
-  await fetch(encodeURI(exchangeURL))
-  .then(async function (response) {
-    if (!response.ok) {
-      throw new Error(`Cannot fetch from '${exchangeURL}': ${response.status} (${response.statusText})`);
-    } else {
-      debugMode? console.debug(`MAS Price update got ${response.status}`) :{};
-    }
-    return await response.json();
-  })
-  .then(async function (data) {
-    if (data['msg'] != "success" || !data['data'].at(-1)['lastPr']) {
-      throw new Error(`Wrong data value: '${data['msg']}' -- '${data['data']}'`);
-    } else {
-      debugMode? console.debug(`Got ${JSON.stringify(data)} from exchange, new MAS Price value: ${data['data'].at(-1)['lastPr']}, fixedValue: ${massaPrice.fixedValue}`) :{};
-      massaPrice.currentValue = parseFloat(data['data'].at(-1)['lastPr']);
-      if (massaPrice.fixedValue === undefined) {
-        debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
-        massaPrice.fixedValue = massaPrice.currentValue;
-      }
-    }
-    let massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
-    if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
-      debugMode? console.debug(`Found MAS Price threshold exceeded detected (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`) :{};
-      const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
-      (massaPriceDiff >= 0)?
-        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent} % )`) :
-        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➖${massaPriceDiffPerscent} % )`);
-      massaPrice.fixedValue = massaPrice.currentValue;
-    }
-  })
-  .catch(err => { console.error(err) });
+  const exchangePrice = await getMassaPrice();
+  debugMode? console.debug(`Got ${exchangePrice} from getMassaPrice`) :{};
+  if (!exchangePrice) {
+    return;
+  }
+
+  massaPrice.currentValue = exchangePrice;
+  if (massaPrice.fixedValue === undefined) {
+    debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
+    massaPrice.fixedValue = massaPrice.currentValue;
+  }
+
+  const massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
+  if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
+    debugMode? console.debug(`Found MAS Price threshold exceeded detected (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`) :{};
+    const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
+    (massaPriceDiff >= 0)?
+      tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent} % )`) :
+      tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➖${massaPriceDiffPerscent} % )`);
+    massaPrice.fixedValue = massaPrice.currentValue;
+  }
 }, exchangeDelayMs);
 
 
@@ -99,32 +94,23 @@ setInterval(async function () {
 setInterval(async function () {
   debugMode? console.debug(`GitHUB MASSA Release interval run`) :{};
 
-  await fetch(githubAPI)
-  .then(async function (response) {
-    if (!response.ok) {
-      throw new Error(`Cannot fetch from '${githubAPI}': ${response.status} (${response.statusText})`);
-    } else {
-      debugMode? console.debug(`GitHUB MASSA Release checker got ${response.status}`) :{};
-    }
-    return await response.json();
-  })
-  .then(async function (data) {
-    if (!data['tag_name']) {
-      throw new Error(`Wrong MASSA Release version received`);
-    }
-    if (massaRelease === undefined) {
-      debugMode? console.debug(`Seems to be a first run - set massaRelease`) :{};
-      massaRelease = data['tag_name'];
-    }
-    if (data['tag_name'] != massaRelease && !data['draft'] && !data['prerelease']) {
-      debugMode? console.log(`New MASSA Release found: '${data['tag_name']}'`) :{};
-      massaRelease = data['tag_name'];
-      tgMessages.push(` 💾 A new MASSA Release available: ${massaRelease}.\n 📥 ${githubRelease}${massaRelease}`);
-    } else {
-      debugMode? console.debug(`No new MASSA releases found (${data['tag_name']})`) :{};
-    }
-  })
-  .catch(err => { console.error(err); });
+  const githubRelease = await getMassaRelease();
+  if (!githubRelease) {
+    return;
+  }
+
+  if (massaRelease === undefined) {
+    debugMode? console.debug(`Seems to be a first run - set massaRelease`) :{};
+    massaRelease = githubRelease;
+  }
+
+  if (githubRelease != massaRelease) {
+    debugMode? console.log(`New MASSA Release found: '${githubRelease}'`) :{};
+    massaRelease = githubRelease;
+    tgMessages.push(` 💾 A new MASSA Release available: ${massaRelease}.\n 📥 ${githubReleasePath}${massaRelease}`);
+  } else {
+    debugMode? console.debug(`No new MASSA releases found (${githubRelease})`) :{};
+  }
 }, githubDelayMs);
 
 
@@ -137,6 +123,8 @@ setInterval(async function () {
     graphStart = graphEnd + 1;
     
   graphEnd = graphStart + graphIntervalMs;
+
+  debugMode? console.debug(`Check interval: ${graphStart} -- ${graphEnd}`) :{};
 
   await w3Client.getGraphInterval({
     start: graphStart,
@@ -154,3 +142,18 @@ setInterval(async function () {
   })
   .catch(err => { console.error(err); });
 }, graphIntervalMs);
+
+
+/** Get operations from stored blocks */
+setInterval(async function () {
+  debugMode? console.debug(`Operations lookup run`) :{};
+
+  const massaBlockId = massaBlocks.shift();
+  if (massaBlockId === undefined) {
+    debugMode? console.debug(`No blocks in Array`) :{};
+    return;
+  }
+  debugMode? console.debug(`Operating ${massaBlockId} block...`) :{};
+
+
+}, operationLookupDelayMs);
