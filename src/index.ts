@@ -27,7 +27,7 @@ import {
 /** Global vars section */
 var tgMessages: string[] = new Array();
 
-var massaRelease: string = "";
+var massaRelease: string;
 
 var massaPrice: IMassaPrice = {
   tresholdPercent: exchangeTresholdPercent,
