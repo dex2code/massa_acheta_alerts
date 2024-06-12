@@ -27,7 +27,7 @@ import {
 /** Global vars section */
 var tgMessages: string[] = new Array();
 
-var massaRelease: string;
+var massaRelease: string = "OLD";
 
 var massaPrice: IMassaPrice = {
   tresholdPercent: exchangeTresholdPercent,
@@ -41,80 +41,80 @@ var massaOps: string[] = new Array();
 /** End of Global vars section */
 
 
-/** TG Courier */
+/** TGCourier */
 setInterval(async function () {
-  debugMode? console.debug(`TG Courier interval run`) :{};
+  if (debugMode) console.debug(`[TGCourier] interval run`);
 
   const tgMessage = tgMessages.shift();
   if (tgMessage === undefined) {
-    debugMode? console.debug(`No TG messages in Array`) :{};
+    if (debugMode) console.debug(`[TGCourier] No messages in Array`);
     return;
-  } else {
-    debugMode?
-      console.debug(`Found '${tgMessage}' message in queue, trying to deliver...`) :
-      console.log(`Found another message in tgQueue, trying to deliver...`);
   }
 
-  await sendTgMessage(tgMessage)?
-    console.log(`Sent TG message successfully`) :
-    console.log(`Error sending TG message`);
-
+  console.log(`[TGCourier] Found another message in tgQueue, trying to deliver:`);
+  console.log(tgMessage);
+  if (await sendTgMessage(tgMessage)) console.log(`[TGCourier] Sent message successfully`);
 }, tgCourierDelayMs);
 
 
-/** Update MAS price */
+/** MassaReleaseUpdater */
 setInterval(async function () {
-  debugMode? console.debug(`MAS Price updater interval run`) :{};
+  if (debugMode) console.debug(`[MassaReleaseUpdater] interval run`);
 
-  const exchangePrice = await getMassaPrice();
-  debugMode? console.debug(`Got ${exchangePrice} from getMassaPrice`) :{};
-  if (!exchangePrice) {
+  const githubRelease = await getMassaRelease();
+  if (!githubRelease) {
+    console.error(`[MassaReleaseUpdater] Got empty or undefined value from getMassaRelease()`);
     return;
   }
 
+  if (massaRelease === undefined) {
+    console.log(`[MassaReleaseUpdater] A first run - set massaRelease ('${githubRelease}')`);
+    massaRelease = githubRelease;
+  }
+
+  if (githubRelease != massaRelease) {
+    console.log(`[MassaReleaseUpdater] New MASSA Release found ( '${massaRelease}' -> '${githubRelease}' )`);
+    massaRelease = githubRelease;
+    tgMessages.push(` 💾 A new MASSA Release available: ${massaRelease}.\n 📥 ${githubReleasePath}${massaRelease}`);
+  } else {
+    console.log(`[MassaReleaseUpdater] No new MASSA releases found: ('${githubRelease}' == '${massaRelease}')`);
+  }
+}, githubDelayMs);
+
+
+/** MassaPriceUpdater */
+setInterval(async function () {
+  if (debugMode) console.debug(`[MassaPriceUpdater] interval run`);
+
+  const exchangePrice = await getMassaPrice();
+  if (!exchangePrice) {
+    console.error(`[MassaPriceUpdater] Got empty or undefined value from getMassaPrice()`);
+    return;
+  }
   massaPrice.currentValue = exchangePrice;
+
   if (massaPrice.fixedValue === undefined) {
-    debugMode? console.debug(`Seems to be a first run - set fixedValue`) :{};
+    console.log(`[MasPriceUpdater] A first run - set fixedValue (${massaPrice.currentValue})`)
     massaPrice.fixedValue = massaPrice.currentValue;
   }
 
   const massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
   if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
-    debugMode? console.debug(`Found MAS Price threshold exceeded detected (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`) :{};
+    console.log(`[MasPriceUpdater] Threshold exceeded: (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`);
     const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
-    (massaPriceDiff >= 0)?
-      tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent} % )`) :
-      tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➖${massaPriceDiffPerscent} % )`);
+    if (massaPriceDiff >= 0) {
+      tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent}% )`);
+    } else {
+      tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➖${massaPriceDiffPerscent}% )`);
+    }
     massaPrice.fixedValue = massaPrice.currentValue;
+  } else {
+    console.log(`[MasPriceUpdater] Treshold not exceeded (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`)
   }
 }, exchangeDelayMs);
 
 
-/** Check MASSA Release */
-setInterval(async function () {
-  debugMode? console.debug(`GitHUB MASSA Release interval run`) :{};
-
-  const githubRelease = await getMassaRelease();
-  if (!githubRelease) {
-    return;
-  }
-
-  if (massaRelease === undefined) {
-    debugMode? console.debug(`Seems to be a first run - set massaRelease`) :{};
-    massaRelease = githubRelease;
-  }
-
-  if (githubRelease != massaRelease) {
-    debugMode? console.log(`New MASSA Release found: '${githubRelease}'`) :{};
-    massaRelease = githubRelease;
-    tgMessages.push(` 💾 A new MASSA Release available: ${massaRelease}.\n 📥 ${githubReleasePath}${massaRelease}`);
-  } else {
-    debugMode? console.debug(`No new MASSA releases found (${githubRelease})`) :{};
-  }
-}, githubDelayMs);
-
-
-/** Get blocks with graphInterval */
+/** Get blocks with graphInterval
 setInterval(async function () {
   debugMode? console.debug(`graphInterval run`) :{};
 
@@ -144,7 +144,7 @@ setInterval(async function () {
 }, graphIntervalMs);
 
 
-/** Get operations from stored blocks */
+/** Get operations from stored blocks
 setInterval(async function () {
   debugMode? console.debug(`Operations lookup run`) :{};
 
@@ -157,3 +157,4 @@ setInterval(async function () {
 
 
 }, operationLookupDelayMs);
+*/
