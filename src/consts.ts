@@ -21,7 +21,7 @@ export const exchangeDelayMs = 300_000;
 export const exchangeTresholdPercent = 5;
 
 export const publicApiURL = "https://mainnet.massa.net/api/v2";
-// export const publicApiURL = "http://localhost:33035/api/v2";
+// export const publicApiURL = "http://127.0.0.1:33035";
 
 export const graphShiftMs = 120_000;
 export const graphTimeOrigin = Date.now() - graphShiftMs;

@@ -32,6 +32,7 @@ var tgMessages: string[] = new Array();
 var massaRelease: string;
 
 var massaPrice = {
+  fixedValue: 0.1,
   tresholdPercent: exchangeTresholdPercent,
 } as IMassaPrice;
 
@@ -122,9 +123,9 @@ setInterval(async function () {
       console.log(`(${Date.now()}) -- [MasPriceUpdater] Threshold exceeded: (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`);
       const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
       if (massaPriceDiff >= 0) {
-        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➕${massaPriceDiffPerscent} % )`);
+        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➕ ${massaPriceDiffPerscent} %`);
       } else {
-        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT ( ➖${massaPriceDiffPerscent} % )`);
+        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➖ ${massaPriceDiffPerscent} %`);
       }
       massaPrice.fixedValue = massaPrice.currentValue;
     } else {
