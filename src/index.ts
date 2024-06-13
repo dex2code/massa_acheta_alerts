@@ -32,7 +32,6 @@ var tgMessages: string[] = new Array();
 var massaRelease: string;
 
 var massaPrice = {
-  fixedValue: 0.1,
   tresholdPercent: exchangeTresholdPercent,
 } as IMassaPrice;
 
