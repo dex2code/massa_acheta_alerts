@@ -63,6 +63,7 @@ setInterval(async function () {
       console.log(`(${Date.now()}) -- [TGCourier] Error sending message`);
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [TGCourier] Error:`);
     console.error(err);
   });
 }, tgCourierDelayMs);
@@ -93,6 +94,7 @@ setInterval(async function () {
     }    
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [MassaReleaseUpdater] Error:`);
     console.error(err);
   });
 }, githubDelayMs);
@@ -130,6 +132,7 @@ setInterval(async function () {
     }  
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [MasPriceUpdater] Error:`);
     console.error(err);
   });
 
@@ -164,6 +167,7 @@ setInterval(() => {
     });
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [graphInterval] Error:`);
     console.error(err);
   });
 }, graphIntervalMs);
@@ -205,6 +209,7 @@ setInterval(async function () {
     });
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [massaBlockLookup] Error:`);
     console.error(err);
   });
 }, blockLookupDelayMs);
@@ -237,6 +242,7 @@ setInterval(async function () {
     })
   })
   .catch(err => {
+    console.error(`(${Date.now()}) -- [massaOperations] Error:`);
     console.error(err);
   });
 }, operationLookupDelayMs);
