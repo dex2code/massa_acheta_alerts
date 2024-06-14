@@ -152,7 +152,7 @@ setInterval(async function () {
     if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
       console.log(`(${Date.now()}) -- [MasPriceUpdater] Threshold exceeded: (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`);
       const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
-      if (massaPriceDiff >= 0) {
+      if (massaPrice.currentValue > massaPrice.fixedValue) {
         tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➕ ${massaPriceDiffPerscent} %`);
       } else {
         tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➖ ${massaPriceDiffPerscent} %`);
