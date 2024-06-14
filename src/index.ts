@@ -1,39 +1,70 @@
-console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
-
 import {
-  debugMode,
-  tgCourierDelayMs,
+  debugMode, dieAfterMs,
+  tgOwner, tgChat, tgToken, tgCourierDelayMs,
   exchangeDelayMs, exchangeTresholdPercent,
   githubDelayMs, githubReleasePath,
   w3Client,
-  graphIntervalMs, graphTimeOrigin,
-  blockLookupDelayMs,
-  operationLookupDelayMs
+  graphTimeOrigin,
+  chainLookupDelayMs,
+  operationTresholdValueUSDT,
+  opExplorerURL,
+  rollPrice,
 } from "./consts";
 
 import {
   IMassaBlock,
-  IMassaPrice
+  IMassaPrice,
 } from "./types";
 
 import {
-  IGetGraphInterval
+  IGetGraphInterval,
+  IRollBuyOpType,
+  IRollSellOpType,
+  ITransactionOpType,
 } from "@massalabs/massa-web3";
 
 import {
-  sendTgMessage, getMassaPrice,
-  getMassaRelease
+  getMassaPrice,
+  getMassaRelease,
 } from "./tools";
+
+
+import TelegramBot from 'node-telegram-bot-api';
+const tgBot = new TelegramBot(tgToken, {polling: false});
+
+console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
+tgBot.sendMessage(tgOwner, `*** Massa Acheta Alerts started at ${new Date()}`);
 
 
 /** Global vars section */
 var tgMessages: string[] = new Array();
 
 var massaRelease: string;
+(async function () {
+  const tMassaRelease = await getMassaRelease();
+  if (tMassaRelease) {
+    massaRelease = tMassaRelease;
+    console.log(`(${Date.now()}) -- [achetaAlerts] Set massaRelease = '${massaRelease}'`);
+  } else {
+    console.error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaRelease - got '${tMassaRelease}' value`);
+    throw new Error(`Cannot set massaRelease`);
+  }
+})();
 
 var massaPrice = {
   tresholdPercent: exchangeTresholdPercent,
 } as IMassaPrice;
+(async function () {
+  const tMassaPrice = await getMassaPrice();
+  if (tMassaPrice) {
+    massaPrice.currentValue = tMassaPrice;
+    massaPrice.fixedValue = tMassaPrice;
+    console.log(`(${Date.now()}) -- [achetaAlerts] Set massaPrice = '${massaPrice.fixedValue}'`);
+  } else {
+    console.error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaPrice - got '${tMassaPrice}' value`);
+    throw new Error(`Cannot set massaPrice`);
+  }
+})();
 
 var graphStart: number;
 var graphEnd: number;
@@ -54,18 +85,17 @@ setInterval(async function () {
   }
 
   console.log(`(${Date.now()}) -- [TGCourier] Found another message in tgQueue, trying to deliver:`);
-  console.log(tgMessage);
+  if (debugMode) console.debug(tgMessage);
 
-  await sendTgMessage(tgMessage)
-  .then(tgResult => {
-    tgResult?
-      console.log(`(${Date.now()}) -- [TGCourier] Sent message successfully`) :
-      console.log(`(${Date.now()}) -- [TGCourier] Error sending message`);
+  await tgBot.sendMessage(tgChat, tgMessage, { disable_web_page_preview: true })
+  .then(response => {
+    console.log(`(${Date.now()}) -- [TGCourier] Successfully delivered message: ${response.message_id}`);
   })
   .catch(err => {
     console.error(`(${Date.now()}) -- [TGCourier] Error:`);
     console.error(err);
   });
+
 }, tgCourierDelayMs);
 
 
@@ -96,6 +126,7 @@ setInterval(async function () {
   .catch(err => {
     console.error(`(${Date.now()}) -- [MassaReleaseUpdater] Error:`);
     console.error(err);
+    tgBot.sendMessage(tgOwner, `[MassaReleaseUpdater] Error: ${err.message}`);
   });
 }, githubDelayMs);
 
@@ -134,9 +165,8 @@ setInterval(async function () {
   .catch(err => {
     console.error(`(${Date.now()}) -- [MasPriceUpdater] Error:`);
     console.error(err);
+    tgBot.sendMessage(tgOwner, `[MasPriceUpdater] Error: ${err.message}`);
   });
-
-
 }, exchangeDelayMs);
 
 
@@ -148,7 +178,7 @@ setInterval(() => {
   } else {
     graphStart = graphEnd + 1;
   }
-  graphEnd = graphStart + graphIntervalMs;
+  graphEnd = graphStart + chainLookupDelayMs;
 
   if (debugMode) console.debug(`(${Date.now()}) -- [graphInterval] Check interval: ${graphStart} -- ${graphEnd}`);
 
@@ -158,11 +188,16 @@ setInterval(() => {
   } as IGetGraphInterval)
   .then(blocks => {
     blocks.forEach(block => {
-      if (block.id) {
+      if (
+        block.id &&
+        block.is_final &&
+        !block.is_in_blockclique &&
+        !block.is_stale
+      ) {
         if (debugMode) console.debug(`(${Date.now()}) -- [graphInterval] Found new block: ${block.id}`);
-        massaBlocks.push(block.id);  
+        massaBlocks.push(block.id);
       } else {
-        console.error(`(${Date.now()}) -- [graphInterval] Undefined block ID`);
+        console.error(`(${Date.now()}) -- [graphInterval] Undefined block ID or not final block: ${block.id}`);
       }
     });
   })
@@ -170,7 +205,7 @@ setInterval(() => {
     console.error(`(${Date.now()}) -- [graphInterval] Error:`);
     console.error(err);
   });
-}, graphIntervalMs);
+}, chainLookupDelayMs);
 
 
 /** massaBlockLookup */
@@ -187,7 +222,7 @@ setInterval(async function () {
     blocks.forEach(block => {
       const tBlock = block as IMassaBlock;
 
-      if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] Operating block ${massaBlockId}`);
+      if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] Operating block ${tBlock.id}`);
 
       if (
         tBlock.id &&
@@ -212,32 +247,104 @@ setInterval(async function () {
     console.error(`(${Date.now()}) -- [massaBlockLookup] Error:`);
     console.error(err);
   });
-}, blockLookupDelayMs);
+}, chainLookupDelayMs);
 
 
 /** massaOperations */
 setInterval(async function () {
 
-  const massaOperationId = massaOperations.shift();
-  if (massaOperationId === undefined) {
-    return;
-  }
-  if (debugMode) console.debug(`(${Date.now()}) -- [massaOperations] found operation ${massaOperationId}`);
-
-  await w3Client.getOperations([massaOperationId])
+  const opSlice = massaOperations.splice(0, massaOperations.length);
+  await w3Client.getOperations(opSlice)
   .then(operations => {
     operations.forEach(operation => {
       if (
         operation.id &&
         operation.is_operation_final &&
+        operation.op_exec_status &&
         !operation.in_pool &&
-        operation.op_exec_status
+        operation.operation.content.op
       ) {
         if (debugMode) console.debug(`(${Date.now()}) -- [massaOperations] Operating ${operation.id}`);
-        console.log(operation);
-        console.log(operation.operation.content.op);  
+        Object.keys(operation.operation.content.op).forEach(opType => {
+          switch (opType) {
+
+            case "Transaction": {
+              const tOperation = operation.operation.content.op as ITransactionOpType;
+
+              const operationValueUSDT = Math.round(
+                parseFloat(tOperation.Transaction.amount) * massaPrice.currentValue
+              );
+
+              if (operationValueUSDT >= operationTresholdValueUSDT) {
+                const tAmount = Math.round(
+                  parseFloat(tOperation.Transaction.amount)
+                );
+                console.log(
+                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
+                  `${operation.operation.content_creator_address} -> ${tOperation.Transaction.recipient_address} ` +
+                  `(${tOperation.Transaction.amount} MAS -- ${operationValueUSDT} USDT)`
+                );
+                tgMessages.push(
+                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
+                  ` 💸 ${tAmount} MAS ( ${operationValueUSDT} USDT ) transferred!\n\n` +
+                  `${opExplorerURL}${operation.id}`
+                );
+              }
+              break;
+            }
+
+            case "RollBuy": {
+              const tOperation = operation.operation.content.op as IRollBuyOpType;
+
+              const operationValueUSDT = Math.round(
+                tOperation.RollBuy.roll_count * rollPrice * massaPrice.currentValue
+              );
+
+              if (operationValueUSDT >= operationTresholdValueUSDT) {
+                console.log(
+                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
+                  `${operation.operation.content_creator_address} ${tOperation.RollBuy.roll_count} Rolls`
+                );
+                tgMessages.push(
+                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
+                  ` 🧻 ${tOperation.RollBuy.roll_count} Rolls ( ${operationValueUSDT} USDT ) have just been bought!\n\n` +
+                  `${opExplorerURL}${operation.id}`
+                );
+              }
+              break;
+            }
+
+            case "RollSell": {
+              const tOperation = operation.operation.content.op as IRollSellOpType;
+
+              const operationValueUSDT = Math.round(
+                tOperation.RollSell.roll_count * rollPrice * massaPrice.currentValue
+              );
+
+              if (operationValueUSDT >= operationTresholdValueUSDT) {
+                console.log(
+                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
+                  `${operation.operation.content_creator_address} ${tOperation.RollSell.roll_count} Rolls`
+                );
+                tgMessages.push(
+                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
+                  ` 🧻 ${tOperation.RollSell.roll_count} Rolls ( ${operationValueUSDT} USDT ) have just been sold!\n\n` +
+                  `${opExplorerURL}${operation.id}`
+                );
+              }
+              break;
+            }
+
+            default: {
+              console.warn(`(${Date.now()}) -- [massaOperations] Unknown type '${opType}' in ${operation.id}`);
+              break;
+            }
+
+          }
+        });
+        
       } else {
-        console.warn(`(${Date.now()}) -- [massaOperations] Operation ${operation.id} is not final`);
+        console.warn(`(${Date.now()}) -- [massaOperations] Operation ${operation.id} is undefined or not final`);
       }
     })
   })
@@ -245,4 +352,9 @@ setInterval(async function () {
     console.error(`(${Date.now()}) -- [massaOperations] Error:`);
     console.error(err);
   });
-}, operationLookupDelayMs);
+}, chainLookupDelayMs);
+
+
+setInterval(async function () {
+  return process.exit(0);
+}, dieAfterMs);

@@ -4,10 +4,14 @@ dotenv.config();
 export const debugMode = (process.env['ACHETA_DEBUG'] === "true");
 
 
-import { getEnvVariable } from "./tools";
+import {
+  getEnvVariable,
+} from "./tools";
+
 
 export const tgToken = getEnvVariable("ACHETA_TELEGRAM_TOKEN");
 export const tgChat = getEnvVariable("ACHETA_TELEGRAM_CHAT");
+export const tgOwner = getEnvVariable("ACHETA_TELEGRAM_OWNER");
 export const tgURL = `https://api.telegram.org/bot${tgToken}/sendMessage?chat_id=${tgChat}&text=`;
 export const tgCourierDelayMs = 2_100;
 
@@ -25,10 +29,13 @@ export const publicApiURL = "https://mainnet.massa.net/api/v2";
 
 export const graphShiftMs = 120_000;
 export const graphTimeOrigin = Date.now() - graphShiftMs;
-export const graphIntervalMs = 500;
 
-export const blockLookupDelayMs = 500;
-export const operationLookupDelayMs = 10;
+export const chainLookupDelayMs = 500;
+
+export const rollPrice = 100;
+export const operationTresholdValueUSDT = 0;
+
+export const opExplorerURL = "https://explorer.massa.net/mainnet/operation/";
 
 
 import {
@@ -43,3 +50,6 @@ export const w3Client = new PublicApiClient({
   } as IProvider ],
   retryStrategyOn: true
 } as IClientConfig );
+
+
+export const dieAfterMs = 86_400_000;

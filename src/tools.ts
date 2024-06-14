@@ -2,7 +2,7 @@ import {
   debugMode,
   tgURL, tgChat,
   exchangeURL, exchangeTicker,
-  githubAPI
+  githubAPI,
 } from "./consts";
 
 import {
@@ -17,24 +17,6 @@ export function getEnvVariable(key: string): string {
     throw new Error(`(${Date.now()}) -- [getEnvVariable] Missing or empty '${key}' key in .env file`);
   }
   return value;
-}
-
-
-export async function sendTgMessage (tgMessage: string): Promise<boolean> {
-  if (debugMode) console.debug(`(${Date.now()}) -> In function sendTgMessage`);
-
-  return await fetch(encodeURI(tgURL + tgMessage))
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`(${Date.now()}) -- [sendTgMessage] Cannot send message to tgChat ${tgChat}: ${response.status} (${response.statusText})`);
-    }
-    return true;
-  })
-  .catch(err => {
-    console.error(`(${Date.now()}) -- [sendTgMessage] Error:`);
-    console.error(err);
-    return false;
-  });
 }
 
 
@@ -85,4 +67,13 @@ export async function getMassaPrice (): Promise<number> {
     console.error(err);
     return 0 as number;
   });
+}
+
+
+export function getSmlr (inString: string): string {
+  let functionResult = inString;
+  if (inString.length > 16) {
+    functionResult = inString.slice(0, 8) + "..." + inString.slice(-6);
+  } 
+  return functionResult;
 }

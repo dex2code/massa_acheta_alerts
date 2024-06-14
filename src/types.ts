@@ -1,10 +1,6 @@
-import {
-  OpType
-} from "./opTypes"
-
 export interface IMassaPrice {
-  currentValue?: number,
-  fixedValue?: number,
+  currentValue: number,
+  fixedValue: number,
   tresholdPercent: number,
 }
 
@@ -16,7 +12,7 @@ export interface IMassaBlock {
     is_candidate: boolean,
     is_discarded: boolean,
     block: null | {
-      operations: [string],
+      operations: Array<string>,
     }
   }
 }
