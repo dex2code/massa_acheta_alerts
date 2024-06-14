@@ -286,7 +286,7 @@ setInterval(async function () {
                 );
                 tgMessages.push(
                   ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 💸 ${tAmount.toLocaleString('en-us')} MAS ( ${operationValueUSDT.toLocaleString('en-us')} USDT ) transferred!\n\n` +
+                  ` 💸 ${tAmount.toLocaleString('en-us')} MAS ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) transferred!\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }
@@ -307,7 +307,7 @@ setInterval(async function () {
                 );
                 tgMessages.push(
                   ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 🧻 ${tOperation.RollBuy.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USDT ) have just been bought!\n\n` +
+                  ` 🧻 ${tOperation.RollBuy.roll_count.toLocaleString('en-us')} Rolls ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) have just been bought!\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }
@@ -328,7 +328,7 @@ setInterval(async function () {
                 );
                 tgMessages.push(
                   ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 🧻 ${tOperation.RollSell.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USDT ) have just been sold!\n\n` +
+                  ` 🧻 ${tOperation.RollSell.roll_count.toLocaleString('en-us')} Rolls ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) have just been sold!\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }
