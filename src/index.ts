@@ -336,6 +336,7 @@ setInterval(async function () {
             }
 
             default: {
+              console.warn(`(${Date.now()}) -- [massaOperations] Unknown type '${opType}' in ${operation.id}`);
               break;
             }
 
