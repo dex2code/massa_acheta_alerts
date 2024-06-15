@@ -32,7 +32,7 @@ import {
 import TelegramBot from 'node-telegram-bot-api';
 const tgBot = new TelegramBot(tgToken, {polling: false});
 
-console.log(`*** Massa Acheta Alerts started at ${new Date()}`);
+console.info(`*** Massa Acheta Alerts started at ${new Date()}`);
 tgBot.sendMessage(tgOwner, `*** Massa Acheta Alerts started at ${new Date()}`);
 
 
@@ -42,13 +42,11 @@ var tgMessages: string[] = new Array();
 var massaRelease: string;
 (async function () {
   const tMassaRelease = await getMassaRelease();
-  if (tMassaRelease) {
-    massaRelease = tMassaRelease;
-    console.log(`(${Date.now()}) -- [achetaAlerts] Set massaRelease = '${massaRelease}'`);
-  } else {
-    console.error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaRelease - got '${tMassaRelease}' value`);
-    throw new Error(`Cannot set massaRelease`);
+  if (!tMassaRelease) {
+    throw new Error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaRelease - got '${tMassaRelease}' value`);
   }
+  massaRelease = tMassaRelease;
+  console.log(`(${Date.now()}) -- [achetaRelease] Set massaRelease = '${massaRelease}'`);
 })();
 
 var massaPrice = {
@@ -56,14 +54,12 @@ var massaPrice = {
 } as IMassaPrice;
 (async function () {
   const tMassaPrice = await getMassaPrice();
-  if (tMassaPrice) {
-    massaPrice.currentValue = tMassaPrice;
-    massaPrice.fixedValue = tMassaPrice;
-    console.log(`(${Date.now()}) -- [achetaAlerts] Set massaPrice = '${massaPrice.fixedValue}'`);
-  } else {
-    console.error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaPrice - got '${tMassaPrice}' value`);
-    throw new Error(`Cannot set massaPrice`);
+  if (!tMassaPrice) {
+    throw new Error(`(${Date.now()}) -- [achetaAlerts] Cannot set massaPrice - got '${tMassaPrice}' value`);
   }
+  massaPrice.currentValue = tMassaPrice;
+  massaPrice.fixedValue = tMassaPrice;
+  console.log(`(${Date.now()}) -- [achetaAlerts] Set massaPrice = '${massaPrice.fixedValue}'`);
 })();
 
 var graphStart: number;
@@ -84,7 +80,7 @@ setInterval(async function () {
     return;
   }
 
-  console.log(`(${Date.now()}) -- [TGCourier] Found another message in tgQueue, trying to deliver:`);
+  console.log(`(${Date.now()}) -- [TGCourier] Found another message in tgQueue, trying to deliver`);
   if (debugMode) console.debug(tgMessage);
 
   await tgBot.sendMessage(tgChat, tgMessage, { disable_web_page_preview: true })
@@ -95,7 +91,6 @@ setInterval(async function () {
     console.error(`(${Date.now()}) -- [TGCourier] Error:`);
     console.error(err);
   });
-
 }, tgCourierDelayMs);
 
 
@@ -108,11 +103,6 @@ setInterval(async function () {
     if (!githubRelease) {
       console.error(`(${Date.now()}) -- [MassaReleaseUpdater] Got empty or undefined value from getMassaRelease()`);
       return;
-    }
-
-    if (massaRelease === undefined) {
-      console.log(`(${Date.now()}) -- [MassaReleaseUpdater] A first run - set massaRelease ('${githubRelease}')`);
-      massaRelease = githubRelease;
     }
 
     if (githubRelease != massaRelease) {
@@ -143,19 +133,14 @@ setInterval(async function () {
     }
     massaPrice.currentValue = exchangePrice;
 
-    if (massaPrice.fixedValue === undefined) {
-      console.log(`(${Date.now()}) -- [MasPriceUpdater] A first run - set fixedValue (${massaPrice.currentValue})`)
-      massaPrice.fixedValue = massaPrice.currentValue;
-    }
-
     const massaPriceDiff = massaPrice.currentValue - massaPrice.fixedValue;
     if (Math.abs(massaPriceDiff) > (massaPrice.fixedValue / 100 * massaPrice.tresholdPercent)) {
       console.log(`(${Date.now()}) -- [MasPriceUpdater] Threshold exceeded: (${massaPrice.fixedValue} -> ${massaPrice.currentValue})`);
       const massaPriceDiffPerscent = (Math.abs(massaPriceDiff) / massaPrice.fixedValue * 100).toFixed(2);
       if (massaPrice.currentValue > massaPrice.fixedValue) {
-        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➕ ${massaPriceDiffPerscent} %`);
+        tgMessages.push(` 🟢 MAS Price: ${massaPrice.fixedValue.toFixed(4)} → ${massaPrice.currentValue.toFixed(4)} USDT\n ↑ ${massaPriceDiffPerscent}%`);
       } else {
-        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue} → ${massaPrice.currentValue} USDT\n➖ ${massaPriceDiffPerscent} %`);
+        tgMessages.push(` 🔴 MAS Price: ${massaPrice.fixedValue.toFixed(4)} → ${massaPrice.currentValue.toFixed(4)} USDT\n ↓ ${massaPriceDiffPerscent}%`);
       }
       massaPrice.fixedValue = massaPrice.currentValue;
     } else {
