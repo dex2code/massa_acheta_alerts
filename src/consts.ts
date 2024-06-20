@@ -12,7 +12,6 @@ import {
 export const tgToken = getEnvVariable("ACHETA_TELEGRAM_TOKEN");
 export const tgChat = getEnvVariable("ACHETA_TELEGRAM_CHAT");
 export const tgOwner = getEnvVariable("ACHETA_TELEGRAM_OWNER");
-export const tgURL = `https://api.telegram.org/bot${tgToken}/sendMessage?chat_id=${tgChat}&text=`;
 export const tgCourierDelayMs = 2_100;
 
 export const githubAPI = "https://api.github.com/repos/massalabs/massa/releases/latest";
@@ -24,16 +23,16 @@ export const exchangeTicker = "MASUSDT";
 export const exchangeDelayMs = 300_000;
 export const exchangeTresholdPercent = 5;
 
-export const publicApiURL = "https://mainnet.massa.net/api/v2";
-// export const publicApiURL = "http://127.0.0.1:33035";
+// export const publicApiURL = "https://mainnet.massa.net/api/v2";
+export const publicApiURL = "http://127.0.0.1:33035";
 
-export const graphShiftMs = 120_000;
+export const graphShiftMs = 60_000;
 export const graphTimeOrigin = Date.now() - graphShiftMs;
 
 export const chainLookupDelayMs = 500;
 
 export const rollPrice = 100;
-export const operationTresholdValueUSDT = 0;
+export const operationTresholdValueUSDT = 5_0000;
 
 export const opExplorerURL = "https://explorer.massa.net/mainnet/operation/";
 
@@ -52,4 +51,4 @@ export const w3Client = new PublicApiClient({
 } as IClientConfig );
 
 
-export const dieAfterMs = 86_400_000;
+export const dieAfterMs = 28_800_000;

@@ -1,6 +1,5 @@
 import {
   debugMode,
-  tgURL, tgChat,
   exchangeURL, exchangeTicker,
   githubAPI,
 } from "./consts";
