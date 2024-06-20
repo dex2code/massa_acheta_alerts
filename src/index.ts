@@ -26,6 +26,7 @@ import {
 import {
   getMassaPrice,
   getMassaRelease,
+  getSmlr,
 } from "./tools";
 
 
@@ -270,8 +271,9 @@ setInterval(async function () {
                   `(${tOperation.Transaction.amount} MAS -- ${operationValueUSDT} USDT)`
                 );
                 tgMessages.push(
-                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 💸 ${tAmount.toLocaleString('en-us')} MAS ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) transferred!\n\n` +
+                  ` 🐳 Whale Alert!\n\n` +
+                  ` 💸 ${tAmount.toLocaleString('en-us')} MAS ( ${operationValueUSDT.toLocaleString('en-us')} USD ) transferred\n\n` +
+                  ` ✉ ${getSmlr(operation.operation.content_creator_address)} → ${getSmlr(tOperation.Transaction.recipient_address)}\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }
@@ -291,8 +293,8 @@ setInterval(async function () {
                   `${operation.operation.content_creator_address} ${tOperation.RollBuy.roll_count} Rolls`
                 );
                 tgMessages.push(
-                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 🧻 ${tOperation.RollBuy.roll_count.toLocaleString('en-us')} Rolls ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) have just been bought!\n\n` +
+                  ` 🐳 Whale Alert!\n\n` +
+                  ` 🧻 ${getSmlr(operation.operation.content_creator_address)} just bought ${tOperation.RollBuy.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USD )\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }
@@ -312,8 +314,8 @@ setInterval(async function () {
                   `${operation.operation.content_creator_address} ${tOperation.RollSell.roll_count} Rolls`
                 );
                 tgMessages.push(
-                  ` 🐳 🐳 🐳   Whale Alert   🐳 🐳 🐳\n\n` +
-                  ` 🧻 ${tOperation.RollSell.roll_count.toLocaleString('en-us')} Rolls ( 💲 ${operationValueUSDT.toLocaleString('en-us')} ) have just been sold!\n\n` +
+                  ` 🐳 Whale Alert!\n\n` +
+                  ` 🧻 ${getSmlr(operation.operation.content_creator_address)} just sold ${tOperation.RollSell.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USD )\n\n` +
                   `${opExplorerURL}${operation.id}`
                 );
               }

@@ -72,7 +72,7 @@ export async function getMassaPrice (): Promise<number> {
 export function getSmlr (inString: string): string {
   let functionResult = inString;
   if (inString.length > 16) {
-    functionResult = inString.slice(0, 8) + "..." + inString.slice(-6);
+    functionResult = "#" + inString.slice(0, 6) + "..." + inString.slice(-4);
   } 
   return functionResult;
 }
