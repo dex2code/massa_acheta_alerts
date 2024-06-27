@@ -16,11 +16,11 @@ export const tgCourierDelayMs = 2_100;
 
 export const githubAPI = "https://api.github.com/repos/massalabs/massa/releases/latest";
 export const githubReleasePath = "https://github.com/massalabs/massa/releases/tag/"
-export const githubDelayMs = 300_000;
+export const githubDelayMs = 60_000;
 
 export const exchangeURL = "https://api.mexc.com/api/v3/ticker/price?symbol=";
 export const exchangeTicker = "MASUSDT";
-export const exchangeDelayMs = 300_000;
+export const exchangeDelayMs = 60_000;
 export const exchangeTresholdPercent = 5;
 
 // export const publicApiURL = "https://mainnet.massa.net/api/v2";
