@@ -77,8 +77,6 @@ setInterval(async function () {
 
 /** MassaReleaseUpdater */
 setInterval(async function () {
-  if (debugMode) console.debug(`(${Date.now()}) -- [MassaReleaseUpdater] Interval run`);
-
   await getMassaRelease()
   .then(githubRelease => {
     if (!githubRelease) {
@@ -104,8 +102,6 @@ setInterval(async function () {
 
 /** MassaPriceUpdater */
 setInterval(async function () {
-  if (debugMode) console.debug(`(${Date.now()}) -- [MassaPriceUpdater] Interval run`);
-
   await getMassaPrice()
   .then(exchangePrice => {
     if (!exchangePrice) {

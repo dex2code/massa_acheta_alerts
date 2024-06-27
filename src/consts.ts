@@ -32,7 +32,7 @@ export const graphTimeOrigin = Date.now() - graphShiftMs;
 export const chainLookupDelayMs = 500;
 
 export const rollPrice = 100;
-export const operationTresholdValueUSDT = 5_0000;
+export const operationTresholdValueUSDT = 5_000;
 
 export const opExplorerURL = "https://explorer.massa.net/mainnet/operation/";
 
