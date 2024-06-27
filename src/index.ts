@@ -1,32 +1,17 @@
 import {
-  debugMode, dieAfterMs,
+  debugMode,
   tgOwner, tgChat, tgToken, tgCourierDelayMs,
   exchangeDelayMs, exchangeTresholdPercent,
   githubDelayMs, githubReleasePath,
-  w3Client,
-  graphTimeOrigin,
-  chainLookupDelayMs,
-  operationTresholdValueUSDT,
-  opExplorerURL,
-  rollPrice,
 } from "./consts";
 
 import {
-  IMassaBlock,
   IMassaPrice,
 } from "./types";
 
 import {
-  IGetGraphInterval,
-  IRollBuyOpType,
-  IRollSellOpType,
-  ITransactionOpType,
-} from "@massalabs/massa-web3";
-
-import {
   getMassaPrice,
   getMassaRelease,
-  getSmlr,
 } from "./tools";
 
 
@@ -63,11 +48,6 @@ var massaPrice = {
   console.log(`(${Date.now()}) -- [achetaAlerts] Set massaPrice = '${massaPrice.fixedValue}'`);
 })();
 
-var graphStart: number;
-var graphEnd: number;
-
-var massaBlocks: string[] = new Array();
-var massaOperations: string[] = new Array();
 /** End of Global vars section */
 
 
@@ -154,194 +134,3 @@ setInterval(async function () {
     tgBot.sendMessage(tgOwner, `[MasPriceUpdater] Error: ${err.message}`);
   });
 }, exchangeDelayMs);
-
-
-/** graphInterval */
-setInterval(() => {
-  if (graphStart === undefined) {
-    graphStart = graphTimeOrigin;
-    console.log(`(${Date.now()}) -- [graphInterval] A first run - set graphStart (${graphStart})`);
-  } else {
-    graphStart = graphEnd + 1;
-  }
-  graphEnd = graphStart + chainLookupDelayMs;
-
-  if (debugMode) console.debug(`(${Date.now()}) -- [graphInterval] Check interval: ${graphStart} -- ${graphEnd}`);
-
-  w3Client.getGraphInterval({
-    start: graphStart,
-    end: graphEnd
-  } as IGetGraphInterval)
-  .then(blocks => {
-    blocks.forEach(block => {
-      if (
-        block.id &&
-        block.is_final &&
-        !block.is_in_blockclique &&
-        !block.is_stale
-      ) {
-        if (debugMode) console.debug(`(${Date.now()}) -- [graphInterval] Found new block: ${block.id}`);
-        massaBlocks.push(block.id);
-      } else {
-        console.error(`(${Date.now()}) -- [graphInterval] Undefined block ID or not final block: ${block.id}`);
-      }
-    });
-  })
-  .catch(err => {
-    console.error(`(${Date.now()}) -- [graphInterval] Error:`);
-    console.error(err);
-  });
-}, chainLookupDelayMs);
-
-
-/** massaBlockLookup */
-setInterval(async function () {
-  const massaBlockId = massaBlocks.shift();
-  if (massaBlockId === undefined) {
-    if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] No blocks in Array`);
-    return;
-  }
-  if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] found block ${massaBlockId}`);
-
-  await w3Client.getBlocks([massaBlockId])
-  .then(blocks => {
-    blocks.forEach(block => {
-      const tBlock = block as IMassaBlock;
-
-      if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] Operating block ${tBlock.id}`);
-
-      if (
-        tBlock.id &&
-        tBlock.content &&
-        tBlock.content.block &&
-        tBlock.content.is_final &&
-        !tBlock.content.is_candidate &&
-        !tBlock.content.is_discarded &&
-        !tBlock.content.is_in_blockclique
-      ) {
-        const operations = tBlock.content.block.operations;
-        operations.forEach(operation => {
-          if (debugMode) console.debug(`(${Date.now()}) -- [massaBlockLookup] Found operation ${operation}`);
-          massaOperations.push(operation);
-        });
-      } else {
-        console.warn(`(${Date.now()}) -- [massaBlockLookup] Block ${tBlock.id} is not final`);
-      }
-    });
-  })
-  .catch(err => {
-    console.error(`(${Date.now()}) -- [massaBlockLookup] Error:`);
-    console.error(err);
-  });
-}, chainLookupDelayMs);
-
-
-/** massaOperations */
-setInterval(async function () {
-
-  const opSlice = massaOperations.splice(0, massaOperations.length);
-  await w3Client.getOperations(opSlice)
-  .then(operations => {
-    operations.forEach(operation => {
-      if (
-        operation.id &&
-        operation.is_operation_final &&
-        operation.op_exec_status &&
-        !operation.in_pool &&
-        operation.operation.content.op
-      ) {
-        if (debugMode) console.debug(`(${Date.now()}) -- [massaOperations] Operating ${operation.id}`);
-        Object.keys(operation.operation.content.op).forEach(opType => {
-          switch (opType) {
-
-            case "Transaction": {
-              const tOperation = operation.operation.content.op as ITransactionOpType;
-
-              const operationValueUSDT = Math.round(
-                parseFloat(tOperation.Transaction.amount) * massaPrice.currentValue
-              );
-
-              if (operationValueUSDT >= operationTresholdValueUSDT) {
-                const tAmount = Math.round(
-                  parseFloat(tOperation.Transaction.amount)
-                );
-                console.log(
-                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
-                  `${operation.operation.content_creator_address} -> ${tOperation.Transaction.recipient_address} ` +
-                  `(${tOperation.Transaction.amount} MAS -- ${operationValueUSDT} USDT)`
-                );
-                tgMessages.push(
-                  ` 🐳 Whale Alert!\n\n` +
-                  ` 💸 ${tAmount.toLocaleString('en-us')} MAS ( ${operationValueUSDT.toLocaleString('en-us')} USD ) transferred\n\n` +
-                  ` ✉ ${getSmlr(operation.operation.content_creator_address)} → ${getSmlr(tOperation.Transaction.recipient_address)}\n\n` +
-                  `${opExplorerURL}${operation.id}`
-                );
-              }
-              break;
-            }
-
-            case "RollBuy": {
-              const tOperation = operation.operation.content.op as IRollBuyOpType;
-
-              const operationValueUSDT = Math.round(
-                tOperation.RollBuy.roll_count * rollPrice * massaPrice.currentValue
-              );
-
-              if (operationValueUSDT >= operationTresholdValueUSDT) {
-                console.log(
-                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
-                  `${operation.operation.content_creator_address} ${tOperation.RollBuy.roll_count} Rolls`
-                );
-                tgMessages.push(
-                  ` 🐳 Whale Alert!\n\n` +
-                  ` 🧻 ${getSmlr(operation.operation.content_creator_address)} just bought ${tOperation.RollBuy.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USD )\n\n` +
-                  `${opExplorerURL}${operation.id}`
-                );
-              }
-              break;
-            }
-
-            case "RollSell": {
-              const tOperation = operation.operation.content.op as IRollSellOpType;
-
-              const operationValueUSDT = Math.round(
-                tOperation.RollSell.roll_count * rollPrice * massaPrice.currentValue
-              );
-
-              if (operationValueUSDT >= operationTresholdValueUSDT) {
-                console.log(
-                  `(${Date.now()}) -- [massaOperations] ${operation.id} (${opType}): ` +
-                  `${operation.operation.content_creator_address} ${tOperation.RollSell.roll_count} Rolls`
-                );
-                tgMessages.push(
-                  ` 🐳 Whale Alert!\n\n` +
-                  ` 🧻 ${getSmlr(operation.operation.content_creator_address)} just sold ${tOperation.RollSell.roll_count.toLocaleString('en-us')} Rolls ( ${operationValueUSDT.toLocaleString('en-us')} USD )\n\n` +
-                  `${opExplorerURL}${operation.id}`
-                );
-              }
-              break;
-            }
-
-            default: {
-              console.warn(`(${Date.now()}) -- [massaOperations] Unknown type '${opType}' in ${operation.id}`);
-              break;
-            }
-
-          }
-        });
-        
-      } else {
-        console.warn(`(${Date.now()}) -- [massaOperations] Operation ${operation.id} is undefined or not final`);
-      }
-    })
-  })
-  .catch(err => {
-    console.error(`(${Date.now()}) -- [massaOperations] Error:`);
-    console.error(err);
-  });
-}, chainLookupDelayMs);
-
-
-setInterval(async function () {
-  return process.exit(0);
-}, dieAfterMs);
